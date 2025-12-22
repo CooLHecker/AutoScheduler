@@ -1,11 +1,11 @@
-import os
 import streamlit as st
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from engine import extract_academic_event, MY_TIMEZONE, ACADEMIC_KEYWORDS
+import datetime
+import base64
 
 def run_sync_for_user(token_dict):
-    # Build credentials from the OAuth session token
     creds = Credentials(
         token=token_dict['access_token'],
         refresh_token=token_dict.get('refresh_token'),
@@ -17,26 +17,45 @@ def run_sync_for_user(token_dict):
     gmail = build('gmail', 'v1', credentials=creds)
     calendar = build('calendar', 'v3', credentials=creds)
 
-    # Scan last 7 days to ensure no events are missed
     query = f"newer_than:7d ({' OR '.join(ACADEMIC_KEYWORDS)})"
     results = gmail.users().messages().list(userId='me', q=query).execute()
     messages = results.get('messages', [])
 
     synced_events = []
+    if not messages:
+        st.info("No relevant academic emails found in the last 7 days.")
+        return []
+
+    st.subheader("🕵️ Scanning Inbox...")
 
     for msg in messages:
         m = gmail.users().messages().get(userId='me', id=msg['id'], format='full').execute()
         headers = m.get('payload', {}).get('headers', [])
         subject = next((h['value'] for h in headers if h['name'] == 'Subject'), "No Subject")
-        snippet = m.get('snippet', "")
+        
+        # Body Decoding
+        full_body = ""
+        payload = m.get('payload', {})
+        if 'parts' in payload:
+            for part in payload['parts']:
+                if part['mimeType'] == 'text/plain':
+                    data = part['body'].get('data')
+                    if data:
+                        full_body = base64.urlsafe_b64decode(data).decode('utf-8')
+                        break
+        else:
+            data = payload.get('body', {}).get('data')
+            if data:
+                full_body = base64.urlsafe_b64decode(data).decode('utf-8')
 
-        # Process Subject | Snippet through the engine
-        event = extract_academic_event(f"{subject} | {snippet}")
+        # Combine and Process
+        combined_text = f"{subject} | {full_body if full_body else m.get('snippet', '')}"
+        event = extract_academic_event(combined_text)
         
         if event:
-            # Duplicate check: Is there already an event with this title today?
-            time_min = event['start'].replace(hour=0, minute=0).isoformat() + 'Z'
-            time_max = event['start'].replace(hour=23, minute=59).isoformat() + 'Z'
+            # Duplicate check
+            time_min = event['start'].replace(hour=0, minute=0, second=0).isoformat() + 'Z'
+            time_max = event['start'].replace(hour=23, minute=59, second=59).isoformat() + 'Z'
             
             existing = calendar.events().list(
                 calendarId='primary', q=event['summary'], 
@@ -46,18 +65,16 @@ def run_sync_for_user(token_dict):
             if not existing.get('items', []):
                 cal_body = {
                     'summary': event['summary'],
-                    'description': f"Sync Source: {event['description']}",
+                    'description': event['description'],
                     'start': {'dateTime': event['start'].isoformat(), 'timeZone': MY_TIMEZONE},
                     'end': {'dateTime': event['end'].isoformat(), 'timeZone': MY_TIMEZONE},
-                    'reminders': {
-                        'useDefault': False,
-                        'overrides': [
-                            {'method': 'popup', 'minutes': 60},
-                            {'method': 'popup', 'minutes': 1440},
-                        ],
-                    },
                 }
                 calendar.events().insert(calendarId='primary', body=cal_body).execute()
                 synced_events.append(event)
+                st.success(f"✅ Scheduled: {event['summary']} on {event['start'].strftime('%b %d at %I:%M %p')}")
+            else:
+                st.info(f"⏭️ Already in Calendar: {subject}")
+        else:
+            st.error(f"❌ Could not find date/time in: {subject}")
                 
     return synced_events
