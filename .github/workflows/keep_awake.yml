@@ -1,0 +1,19 @@
+name: Keep AutoScheduler Awake
+on:
+  schedule:
+    # 18:30 UTC = 00:00 IST (Midnight)
+    # 03:30 UTC = 09:00 IST
+    # 07:30 UTC = 13:00 IST
+    # 11:30 UTC = 17:00 IST
+    # 15:30 UTC = 21:00 IST
+    - cron: '30 18,3,7,11,15 * * *'
+  workflow_dispatch: 
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Ping to Streamlit
+        run: |
+          curl -I https://autoscheduler.streamlit.app/
+          echo "Ping successful at $(date -d '+5 hours 30 minutes' '+%Y-%m-%d %H:%M:%S') IST"
