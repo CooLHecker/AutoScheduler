@@ -1,19 +1,21 @@
 name: Keep AutoScheduler Awake
 on:
   schedule:
-    # 18:30 UTC = 00:00 IST (Midnight)
-    # 03:30 UTC = 09:00 IST
-    # 07:30 UTC = 13:00 IST
-    # 11:30 UTC = 17:00 IST
-    # 15:30 UTC = 21:00 IST
+    # Runs at 12:00 AM, 9:00 AM, 1:00 PM, 5:00 PM, and 9:00 PM IST
     - cron: '30 18,3,7,11,15 * * *'
-  workflow_dispatch: 
+  workflow_dispatch: # Allows you to trigger it manually for testing
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Ping to Streamlit
+      - name: Send Deep Ping to Streamlit
         run: |
-          curl -I https://autoscheduler.streamlit.app/
-          echo "Ping successful at $(date -d '+5 hours 30 minutes' '+%Y-%m-%d %H:%M:%S') IST"
+          # -L follows redirects
+          # --user-agent mimics a real Windows Chrome browser
+          # -s ensures it stays quiet in the logs
+          # -o /dev/null throws away the HTML content so we don't waste space
+          curl -L -s --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36" \
+          https://autoscheduler.streamlit.app/ -o /dev/null
+          
+          echo "Deep Ping successful at $(date -d '+5 hours 30 minutes' '+%Y-%m-%d %H:%M:%S') IST"
