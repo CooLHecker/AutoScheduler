@@ -16,6 +16,6 @@ jobs:
           # -s ensures it stays quiet in the logs
           # -o /dev/null throws away the HTML content so we don't waste space
           curl -L -s --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36" \
-          https://autoscheduler.streamlit.app/ -o /dev/null
+          "https://autoscheduler.streamlit.app/" -o /dev/null
           
           echo "Deep Ping successful at $(date -d '+5 hours 30 minutes' '+%Y-%m-%d %H:%M:%S') IST"
