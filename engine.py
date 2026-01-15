@@ -10,19 +10,18 @@ ACADEMIC_KEYWORDS = [
 MY_TIMEZONE = 'Asia/Kolkata'
 
 def extract_academic_event(text):
-    # Standardize text (important for 'at 5pm' formats)
+    
     clean_text = " ".join(text.split())
     
-    # 1. Keyword Check
+    
     found_keyword = next((kw.capitalize() for kw in ACADEMIC_KEYWORDS if kw.lower() in clean_text.lower()), "Academic")
             
-    # 2. Advanced Regex to capture "25th December at 5pm" or "22 december"
-    # This captures the date AND the following 'at Xpm' if it exists
+    
     date_time_pattern = r"(\d{1,2}(?:st|nd|rd|th)?\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*(?:\s+at\s+\d{1,2}(?::\d{2})?\s*[ap]m)?)"
     
     match = re.search(date_time_pattern, clean_text, re.IGNORECASE)
     
-    # If regex finds a match, we parse ONLY that match for maximum precision
+    
     search_chunk = match.group(0) if match else clean_text
 
     parsed_date = dateparser.parse(search_chunk, settings={
@@ -34,11 +33,11 @@ def extract_academic_event(text):
     })
 
     if parsed_date:
-        # If the email is for "Today" (Dec 22), ensure the year is 2025
+        
         if parsed_date.year < 2025:
             parsed_date = parsed_date.replace(year=2025)
 
-        # Clean up the title for the calendar
+       
         title_part = text.split("|")[0].strip()
         
         return {
